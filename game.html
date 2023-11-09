@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<link rel="stylesheet" type="text/css" href="game.css">
+	<title>Game</title>
+</head>
+<body>
+	<div class="info">
+		<a href="Project.html"><button id="back">Back</button></a>
+  		<span id="timer">00:00</span>
+  		<span id="bombCount">10</span>
+  		<a href="game.html"><button id="reset">Reset</button></a>
+	</div>
+	<div id="grid"></div>
+	<br>
+	<button id="flag-button">🚩</button>
+
+		<script type="text/javascript">
+			//MY RECORD IS 6s in 8x8 try to beat that :) but i got lucky try to beat 17s its my regular time
+			//variables
+			let grid= [];
+			let rows = 8;
+			let cols = 8;
+			let bombCount = 10; //num of bombs
+			let bombLocation = [];//coords of bomb
+			let squaresClicked=0; //goal: click all squares without bomb
+			let flagEnabled=false;//self explanatory
+			let gameOver=false;//self explanatory
+			let bombCounter = bombCount;//used for bomb counter on screen
+			let timerInterval;//for counter
+			//call the function on window load
+			window.onload = function(){
+				initGame();
+			}
+			//function to start the game
+			function initGame() {
+				document.getElementById("flag-button").addEventListener("click",setFlag);//onclick for flag button
+				document.getElementById("bombCount").innerText=bombCount;
+				setBombs();//calling fn for bombs
+				//creating grid
+				for(let r = 0; r<rows; r++){
+					let row=[];
+					for(let c=0; c<cols; c++){
+						let square=document.createElement("div");//each square
+						square.id = r.toString() + "-" + c.toString();//saving coord of sqaure
+						square.addEventListener("click",clickSquare);//onclick
+						document.getElementById("grid").append(square);
+						row.push(square);
+					}
+					grid.push(row);
+				}
+				console.log(grid);//coords in console log
+				startTime = new Date().getTime();//set starting time
+  				updateTimer();//start timer
+			}
+			//function for flag button
+			function setFlag(){
+				if (flagEnabled){
+					flagEnabled=false;
+					document.getElementById("flag-button").style.backgroundColor = "#1C2330";
+				}
+				else{
+					flagEnabled=true;
+					document.getElementById("flag-button").style.backgroundColor = "midnightblue";
+				}
+			}
+			//function for clicking
+			function clickSquare() {
+				//unclickable if
+				if (gameOver || this.classList.contains("empty")) {
+					return;
+				}
+				//if theres a flag on square then you cant click it
+				if (!flagEnabled && this.innerText === "🚩") {
+					return;
+				}
+  				let square = this;
+  				//if flagbutton is clicked and you click a square
+ 				if (flagEnabled) {
+  					if (square.innerText == ""  && bombCounter > 0) {
+     					square.innerText = "🚩";
+     					bombCounter--;
+     				 	document.getElementById("bombCount").innerText = bombCounter;
+   					} 
+
+   			 		else if (square.innerText == "🚩") {
+      					square.innerText = "";
+     			 		bombCounter++;
+      					document.getElementById("bombCount").innerText = bombCounter;
+    				}
+    				return;
+  				}		
+  				//clik on bomb
+  				if (bombLocation.includes(square.id)) {
+  					alert("GAME OVER");
+  					stopTimer();
+  					gameOver=true;
+  					revealBombs();
+  					return;
+  				}
+
+  				let coords = square.id.split("-");
+  				let r = parseInt(coords[0]);
+  				let c = parseInt(coords[1]);
+  				checkBomb(r,c);
+			}
+			//function to set bombs in random coordinates of squares
+			function setBombs() {
+				let bombsLeft = bombCount;
+				while(bombsLeft >0){
+					let r = Math.floor(Math.random()*rows);
+					let c = Math.floor(Math.random()*cols);
+					let id = r.toString() + "-" + c.toString();//saving coord as id
+					//
+					if (!bombLocation.includes(id)) {
+						bombLocation.push(id);
+						bombsLeft -=1;
+					}
+				}
+			}
+			//function to reveal bombs if u lose
+			function revealBombs() {
+ 		 		for (let r = 0; r < rows; r++) {
+    				for (let c = 0; c < cols; c++) {
+     					let square = grid[r][c];
+     		 			if (bombLocation.includes(square.id)) {
+        				square.innerText = "";
+        				square.classList.add("bomb");
+      					}
+    				}
+  				}	
+			}
+			//function to check nearby squares for bomb with helo of checkSquare
+			function checkBomb(r,c){
+				//if out of bounds
+				if (r<0 || r>=rows || c<0 || c>= cols) {
+					return;
+				}
+				if (grid[r][c].classList.contains("empty")) {
+					return;
+				}
+				grid[r][c].classList.add("empty");
+				squaresClicked +=1;
+				let bombsFound = 0;
+				//top3
+				bombsFound+=checkSquare(r-1,c-1); //topleft
+				bombsFound+=checkSquare(r-1,c); //top
+				bombsFound+=checkSquare(r-1,c+1); //topright
+				//left and right
+				bombsFound+=checkSquare(r,c-1);//left
+				bombsFound+=checkSquare(r,c+1);//right
+				//bottom3
+				bombsFound+=checkSquare(r+1,c-1);//bottom left
+				bombsFound+=checkSquare(r+1,c); //bottom
+				bombsFound+=checkSquare(r+1,c+1);//bottom right
+				//number of bombs in 9 squares around square
+				if (bombsFound >0) {
+					grid[r][c].innerText = bombsFound;
+					grid[r][c].classList.add("x"+bombsFound.toString());
+				}
+				//algorithm for opening nearby squares which are without a number
+				else{
+					//top3
+					checkBomb(r-1,c-1);
+					checkBomb(r-1,c);
+					checkBomb(r-1, c+1);
+					//left and right
+					checkBomb(r,c-1);
+					checkBomb(r,c+1);
+					//bottom3
+					checkBomb(r+1,c-1);
+					checkBomb(r+1,c);
+					checkBomb(r+1,c+1);
+				}
+				//check if won
+				if(squaresClicked== rows*cols-bombCount){
+					document.getElementById("bombCount").innerText="Cleared!";
+					stopTimer();
+					alert("YOU WIN!");
+					gameOver=true;
+				}
+			}
+			function checkSquare(r,c){
+				//if out of bounds
+				if (r<0 || r>=rows || c<0 || c>= cols) {
+					return 0;
+				}
+				if (bombLocation.includes(r.toString() + "-" + c.toString())){
+					return 1;
+				}
+				return 0;	
+			}
+			//function for timer
+			function updateTimer() {
+  				let currentTime = new Date().getTime();//getting time in ms
+  				let elapsedTime = currentTime - startTime;//calculate elapsed time in ms
+  				let minutes = Math.floor(elapsedTime / 60000);//calcualting the minutes
+ 				let seconds = Math.floor((elapsedTime % 60000) / 1000);//calculating seconds
+  				let formattedMinutes = `${minutes}`.padStart(2, '0');//formatting with leading zeroes
+  				let formattedSeconds = `${seconds}`.padStart(2, '0');
+  				let timerElement = document.getElementById("timer");
+  				timerElement.innerText = formattedMinutes + ":" + formattedSeconds;
+  				timerInterval =setTimeout(updateTimer, 1000);//after 1s
+			}
+			//function to stop timer (used in game over and game won)
+			function stopTimer() {
+				clearInterval(timerInterval);
+			}
+			//used referance: https://www.youtube.com/watch?v=AfhfAxKFP-s
+		</script>
+</body>
+</html>
